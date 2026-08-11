@@ -31,5 +31,10 @@ dev = ["pytest>=8.0"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.metadata]
+# required because `imagebind` above is a git URL ("direct reference"), which hatchling
+# rejects by default
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["birdcall"]
