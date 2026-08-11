@@ -2,10 +2,13 @@
 __pycache__/
 *.pyc
 .cache/
-data/raw/
-data/embeddings/
-artifacts/
-*.pt
-*.faiss
 .env
 .streamlit/
+
+# Bulk source media only — regenerate via `scripts/run_pipeline.py ingest`, not meant to live in
+# git history. Everything else under data/ (manifest.jsonl, text descriptions, cached .npy
+# embeddings) and all of artifacts/ (trained projection head + FAISS indices) IS tracked
+# deliberately: all small, and committing them is what lets Colab-trained results reach the
+# local Streamlit app via `git pull` instead of Google Drive.
+data/raw/audio/
+data/raw/images/

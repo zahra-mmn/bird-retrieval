@@ -151,51 +151,69 @@ aren't interchangeable, so don't point the app at the baseline index.
 ## Running the heavy stages in Colab
 
 Ingestion, embedding, and training need a GPU and take a while — the intended split is: run
-those stages in Colab (free T4), then bring the small result artifacts back to run the
-Streamlit app locally.
+those stages in Colab (free T4), then pull the small result artifacts back locally via git to
+run the Streamlit app. No Google Drive involved — Colab's local disk is ephemeral, so the repo
+itself (via `git commit`/`git push`) is what carries results between sessions and back to your
+machine, not a mounted drive.
 
-1. **Push this repo to GitHub** (once). Only code is tracked — `data/`, `artifacts/`, and
-   `.cache/` are gitignored, so this stays a small push regardless of dataset size.
+Bulk source media (`data/raw/audio/`, `data/raw/images/`) stays gitignored — regenerate it with
+`ingest` rather than committing it. Everything else (`manifest.jsonl`, cached `.npy` embeddings,
+`artifacts/`) is small and deliberately tracked.
 
-2. **In a new Colab notebook**, first cell — select a GPU runtime
-   (Runtime → Change runtime type → T4 GPU), then:
+1. **In a new Colab notebook**, select a GPU runtime (Runtime → Change runtime type → T4 GPU),
+   then clone + install:
 
    ```python
-   !git clone https://github.com/<you>/<repo>.git
-   %cd <repo>
+   %cd /content
+   !rm -rf bird-retrieval
+   !git clone https://github.com/zahra-mmn/bird-retrieval.git
+   %cd /content/bird-retrieval
    !pip install uv
    !uv pip install --system -e .
    ```
 
-3. **Mount Drive** so downloaded data/checkpoints survive Colab session resets (Colab's local
-   disk is wiped when the runtime recycles):
+2. **Set up git identity + push credentials**, so results can go back to GitHub from Colab.
+   Generate a fine-grained Personal Access Token on the `zahra-mmn` account (Settings →
+   Developer settings → Personal access tokens) scoped to this repo with **Contents:
+   read/write**, then:
 
    ```python
-   from google.colab import drive
-   drive.mount('/content/drive')
-   DATA_DIR = '/content/drive/MyDrive/bird-retrieval/data'
+   !git config user.email "you@example.com"
+   !git config user.name "zahra-mmn"
+
+   import getpass
+   token = getpass.getpass("GitHub token: ")  # prompts, doesn't echo/print the value
+   !git remote set-url origin https://{token}@github.com/zahra-mmn/bird-retrieval.git
    ```
 
-4. **Run the same CLI commands as above**, pointing `--data-dir` / `--out-dir` at the mounted
-   Drive path instead of a local one, e.g.:
+3. **Run the pipeline stages directly against the repo's own `data/`/`artifacts/` folders**
+   (no separate `DATA_DIR` needed):
 
    ```python
-   !uv run python scripts/run_pipeline.py ingest --data-dir {DATA_DIR}/raw --per-species 8
-   !uv run python scripts/run_pipeline.py embed  --manifest {DATA_DIR}/raw/manifest.jsonl --out-dir {DATA_DIR}/embeddings
-   !uv run python scripts/run_pipeline.py train  --manifest {DATA_DIR}/raw/manifest.jsonl --embeddings-dir {DATA_DIR}/embeddings --out-dir {DATA_DIR}/artifacts/projection_head
-   !uv run python scripts/run_pipeline.py index  --manifest {DATA_DIR}/raw/manifest.jsonl --embeddings-dir {DATA_DIR}/embeddings --out-dir {DATA_DIR}/artifacts/index/baseline
-   !uv run python scripts/run_pipeline.py index  --manifest {DATA_DIR}/raw/manifest.jsonl --embeddings-dir {DATA_DIR}/embeddings --out-dir {DATA_DIR}/artifacts/index/finetuned --projection-head {DATA_DIR}/artifacts/projection_head/projection_head.pt
+   !uv run python scripts/run_pipeline.py ingest --data-dir data/raw --species "American Crow,House Finch,Song Sparrow" --per-species 5
+   !uv run python scripts/run_pipeline.py embed  --manifest data/raw/manifest.jsonl --out-dir data/embeddings
+   !uv run python scripts/run_pipeline.py train  --manifest data/raw/manifest.jsonl --embeddings-dir data/embeddings --out-dir artifacts/projection_head
+   !uv run python scripts/run_pipeline.py index  --manifest data/raw/manifest.jsonl --embeddings-dir data/embeddings --out-dir artifacts/index/baseline
+   !uv run python scripts/run_pipeline.py index  --manifest data/raw/manifest.jsonl --embeddings-dir data/embeddings --out-dir artifacts/index/finetuned --projection-head artifacts/projection_head/projection_head.pt
    ```
 
-5. **Bring the results back to your local machine.** You only need three small things, not the
-   raw audio/images/embeddings — copy these from Drive into your local repo's `data/` and
-   `artifacts/` folders (Drive for Desktop, or download from the Drive web UI, both work):
-   - `raw/manifest.jsonl`
-   - `artifacts/projection_head/projection_head.pt`
-   - `artifacts/index/baseline/` and `artifacts/index/finetuned/` (each is just `index.faiss` +
-     `metadata.json`, a few hundred KB)
+4. **Commit and push the results** (git respects `.gitignore`, so this only picks up
+   `manifest.jsonl`, the cached embeddings, and `artifacts/` — not the raw media):
 
-   Then run the Streamlit app locally as usual — it only reads those three things.
+   ```python
+   !git add data/raw/manifest.jsonl data/raw/text data/embeddings artifacts
+   !git commit -m "Colab run: ingest + embed + train + index"
+   !git push
+   ```
+
+5. **Back on your local machine**, just pull:
+
+   ```powershell
+   git pull
+   ```
+
+   Then run the Streamlit app locally as usual — it reads `artifacts/index/finetuned` and
+   `artifacts/projection_head/projection_head.pt`, both now present from the pull.
 
 ## Dataset licensing
 
