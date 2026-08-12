@@ -10,7 +10,11 @@ import json
 import os
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
+
 from .cache import DiskCache
+
+load_dotenv()  # reads OPENAI_API_KEY from a .env file in the working directory, if present
 
 DEFAULT_MODEL = "gpt-4o-mini"
 
