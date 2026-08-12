@@ -118,8 +118,11 @@ uv run streamlit run birdcall/app/streamlit_app.py
 `uv sync` generates/reads `uv.lock` — commit it so a fresh clone reproduces the exact
 environment with `uv sync` alone.
 
-Copy `.env.example` to `.env` and set `OPENAI_API_KEY` before running anything that touches the
-reasoning layer.
+Copy `.env.example` to `.env` and set:
+- `OPENAI_API_KEY` before running anything that touches the reasoning layer.
+- `XENO_CANTO_API_KEY` before running `ingest` — Xeno-canto's v3 API requires a free key
+  (register at xeno-canto.org with a verified email, then grab the key from your account page).
+  In Colab, set it directly instead: `import os; os.environ["XENO_CANTO_API_KEY"] = "..."`.
 
 ## Running the pipeline
 

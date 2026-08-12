@@ -1,23 +1,41 @@
 """Download bird-call recordings from Xeno-canto, run them through call-isolation preprocessing,
 and record exact source IDs + licenses into the manifest.
+
+Xeno-canto retired its v2 API in favor of v3, which requires a free API key (register at
+xeno-canto.org with a verified email, then find your key on your account page) — set
+XENO_CANTO_API_KEY in the environment or .env before calling this module.
 """
 
+import os
 import time
 from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
 
 from ..audio.preprocess import isolate_call
 from ..manifest import Item, Modality
 
-XC_API = "https://xeno-canto.org/api/2/recordings"
+load_dotenv()
+
+XC_API = "https://xeno-canto.org/api/3/recordings"
 
 
 def search_recordings(species: str, max_results: int = 10, quality: str = "A") -> list[dict]:
-    query = f"{species} q:{quality}"
-    resp = requests.get(XC_API, params={"query": query}, timeout=30)
+    api_key = os.environ.get("XENO_CANTO_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "XENO_CANTO_API_KEY is not set. Xeno-canto's v3 API requires a free key — "
+            "register at xeno-canto.org (verified email), grab the key from your account "
+            "page, then set it in .env or `os.environ`."
+        )
+    query = f'en:"{species}" q:{quality}'
+    resp = requests.get(XC_API, params={"query": query, "key": api_key}, timeout=30)
     resp.raise_for_status()
-    return resp.json().get("recordings", [])[:max_results]
+    data = resp.json()
+    if data.get("error"):
+        raise RuntimeError(f"Xeno-canto API error: {data.get('error')} — {data.get('message')}")
+    return data.get("recordings", [])[:max_results]
 
 
 def download_species_audio(species: str, out_dir, max_results: int = 10,

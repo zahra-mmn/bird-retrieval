@@ -10,12 +10,19 @@ from ..manifest import Item, Modality
 
 WIKI_API = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 
+# Wikimedia's REST API returns 403 for requests with no identifying User-Agent — see
+# https://meta.wikimedia.org/wiki/User-Agent_policy
+HEADERS = {
+    "User-Agent": "bird-retrieval/0.1 (https://github.com/zahra-mmn/bird-retrieval; "
+                  "moumene.fatimazahra167@gmail.com)"
+}
+
 
 def fetch_species_text(species: str, out_dir) -> Item:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     title = species.replace(" ", "_")
-    resp = requests.get(WIKI_API.format(title=title), timeout=30)
+    resp = requests.get(WIKI_API.format(title=title), headers=HEADERS, timeout=30)
     resp.raise_for_status()
     data = resp.json()
     extract = data.get("extract", "")
