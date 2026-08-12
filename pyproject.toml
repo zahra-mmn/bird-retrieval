@@ -10,8 +10,10 @@ dependencies = [
     "torchvision>=0.17",
     "imagebind @ git+https://github.com/facebookresearch/ImageBind.git",
     "faiss-cpu>=1.8.0",
-    # numpy pinned <2.0: faiss-cpu / ImageBind's pinned torch build assume the numpy 1.x ABI
-    "numpy>=1.24,<2.0",
+    # No upper bound: on Colab, forcing a numpy 1.x downgrade breaks ABI compatibility with the
+    # numpy-2.x-compiled torch/scipy already baked into the image (ValueError: numpy.dtype size
+    # changed). Let the resolver match whatever's already consistent in the target environment.
+    "numpy>=1.24",
     "requests>=2.31",
     "librosa>=0.10",
     "soundfile>=0.12",
